@@ -5,17 +5,14 @@ import json
 import base64
 import os
 import aiohttp
-
+import subprocess
+import sys
 
 # TODO:
-#   - Reddit API integration
-#   - calc command
-#   - change ping command to ping a website
-#   - fun:
-#     - burn/roast command
-#     - minigames
+#   - Reddit integration
+#   - Minigames
 
-TOKEN = "[token censored for privacy]"
+TOKEN = "NTkzOTgzMjA0NzY0MDI0ODMy.XRV1jw.fGvmnYoIpIwDObFFaStPi3wBuLA"
 
 prefix = "rito "
 adminIDs = ["Flaming_Dorito#0001"]
@@ -111,64 +108,79 @@ async def on_message(message):
 
 
 @bot.command()
-async def mcping(ctx, *args):
-    if len(args) < 1:
+async def ping(ctx, website=None):
+    if website is None:
+        emb = discord.Embed(title="Error: No server website entered", type="rich", description="Enter a website to ping.", color=0xff0000, timestamp=datetime.datetime.utcnow())
+        emb.set_footer(text=f"Requested by {ctx.author}")
+        await ctx.send(embed=emb)
+    else:
+        packetCount = 6
+        emb = discord.Embed(title=f"Pinging {website}", type="rich", description=f"Pinging {packetCount} times now, please allow up to 3 seconds...", color=0x00ff00, timestamp=datetime.datetime.utcnow())
+        emb.set_footer(text=f"Requested by {ctx.author}")
+        msg = await ctx.send(embed=emb)
+
+        if sys.platform == 'linux':
+            result = subprocess.run(['ping', "-c", str(packetCount), website], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        if sys.platform == 'win32':
+            result = subprocess.run(['ping', "-n", str(packetCount), website], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        if result == "":
+            result = "Invalid/Unresponsive website."
+        print(result)
+        emb.add_field(name="Ping results:", value="```" + result + "```")
+        await msg.edit(embed=emb)
+
+
+@bot.command()
+async def mcping(ctx, ip=None):
+    if ip is None:
         emb = discord.Embed(title="Error: No server IP entered", type="rich", description="Enter a minecraft server IP to ping.", color=0xff0000, timestamp=datetime.datetime.utcnow())
         emb.set_footer(text=f"Requested by {ctx.author}")
         await ctx.send(embed=emb)
-    elif len(args) == 1:
-        url = "https://api.mcsrvstat.us/2/" + str(args[0])
+    else:
+        url = "https://api.mcsrvstat.us/2/" + ip
         async with aiohttp.ClientSession() as session:
             resp = await session.get(url)
             dictData = await resp.json()
-        emb = discord.Embed(title=f"Pinging {args[0]}...", type="rich", description="Here is all the available data:", color=0x00ff00, timestamp=datetime.datetime.utcnow())
-        f, emb = embed_mc_server_data(dictData, emb, args[0])
+        emb = discord.Embed(title=f"Pinging {ip}...", type="rich", description="Here is all the available data:", color=0x00ff00, timestamp=datetime.datetime.utcnow())
+        f, emb = embed_mc_server_data(dictData, emb, ip)
         if dictData['online']:
             await ctx.send(files=[f], embed=emb)
         else:
             await ctx.send(embed=emb)
         if os.path.exists("icon.png"):
             os.remove("icon.png")
-    else:
-        emb = discord.Embed(title="Error: Invalid Syntax", type="rich", description="Too many arguments.", color=0xff0000, timestamp=datetime.datetime.utcnow())
-        emb.set_footer(text=f"Requested by {ctx.author}")
-        await ctx.send(embed=emb)
 
 
 @bot.command()
-async def mcplayer(ctx, *args):
-    if len(args) < 1:
+async def mcplayer(ctx, player=None):
+    if player is None:
         emb = discord.Embed(title="Error: No player name entered", type="rich", description="Enter a minecraft player name to ping.", color=0xff0000, timestamp=datetime.datetime.utcnow())
         emb.set_footer(text=f"Requested by {ctx.author}")
         await ctx.send(embed=emb)
-    elif len(args) == 1:
-        url = "https://minecraft-statistic.net/api/player/info/" + str(args[0])
+    else:
+        url = "https://minecraft-statistic.net/api/player/info/" + player
         async with aiohttp.ClientSession() as session:
             resp = await session.get(url)
             dictData = await resp.json()
         if dictData['status'] == "ok":
-            emb = discord.Embed(title=f"Loading {args[0]}'s stats...", type="rich", description="Here is all the available data:", color=0x00ff00, timestamp=datetime.datetime.utcnow())
-            emb = embed_player_data(dictData, emb, args[0])
+            emb = discord.Embed(title=f"Loading {player}'s stats...", type="rich", description="Here is all the available data:", color=0x00ff00, timestamp=datetime.datetime.utcnow())
+            emb = embed_player_data(dictData, emb, player)
         else:
-            emb = discord.Embed(title=f"Error loading {args[0]}'s stats...", type="rich", description=f"Error: {dictData['msg']}.", color=0xff0000, timestamp=datetime.datetime.utcnow())
-        emb.set_footer(text=f"Requested by {ctx.author}")
-        await ctx.send(embed=emb)
-    else:
-        emb = discord.Embed(title="Error: Invalid Syntax", type="rich", description="Too many arguments.", color=0xff0000, timestamp=datetime.datetime.utcnow())
+            emb = discord.Embed(title=f"Error loading {player}'s stats...", type="rich", description=f"Error: {dictData['msg']}.", color=0xff0000, timestamp=datetime.datetime.utcnow())
         emb.set_footer(text=f"Requested by {ctx.author}")
         await ctx.send(embed=emb)
 
 
 @bot.command()
-async def roast(ctx, *args):
+async def roast(ctx, person=None):
     if str(ctx.author) in adminIDs and ctx.message.guild.id not in blacklistRoastCommandGuildIDs:
-        if len(args) == 0:
+        if person is None:
             emb = discord.Embed(title=f"Error: No person entered", type="rich", description="Enter who you want to roast.", color=0xff0000, timestamp=datetime.datetime.utcnow())
             emb.set_footer(text=f"Requested by {ctx.author}")
             await ctx.send(embed=emb)
-        elif len(args) == 1:
+        else:
             template = "You are as <adjective> as <article target=adj1> <adjective min=1 max=3 id=adj1> <amount> of <adjective min=1 max=3> <animal> <animal_part>"
-            if args[0].lower() == "me":
+            if person.lower() == "me":
                 who = None
                 url = "https://insult.mattbas.org/api/insult.json?template=" + template
             else:
@@ -182,18 +194,14 @@ async def roast(ctx, *args):
                 emb = discord.Embed(title=f"Error: Error loading roast...", type="rich", description=f"Error: {dictData['error_message']}.", color=0xff0000, timestamp=datetime.datetime.utcnow())
             else:
                 insult = dictData['insult']
-                insult = insult.replace("abc", args[0])
+                insult = insult.replace("abc", person)
                 emb = discord.Embed(title="Owww Roasted!!", type="rich", description=insult, color=0x00ff00, timestamp=datetime.datetime.utcnow())
             emb.set_footer(text=f"Requested by {ctx.author}")
             await ctx.send(embed=emb)
-    else:
-        emb = discord.Embed(title="Error: Command disabled", type="rich", description="This command is disabled on this server.", color=0xff0000, timestamp=datetime.datetime.utcnow())
-        emb.set_footer(text=f"Requested by {ctx.author}")
-        await ctx.send(embed=emb)
 
 
 @bot.command()
-async def stop(ctx, *args):
+async def stop(ctx):
     if str(ctx.author) in adminIDs:
         emb = discord.Embed(title="Stopping Baby-Dorito", type="rich", description="Baby-Dorito is stopping.", color=0x00ff00, timestamp=datetime.datetime.utcnow())
         emb.set_thumbnail(url=images["bye"])
@@ -207,14 +215,18 @@ async def stop(ctx, *args):
 
 
 @bot.command()
-async def help(ctx, *args):
-    emb = discord.Embed(title="Baby-Dorito Help Menu", type="rich", description="Hey there! I'm Baby-Dorito and here is how you can use me (prefix: rito)\nSome commands may not be completely functional at the time since the bot is still under development.", color=0x00ff00, timestamp=datetime.datetime.utcnow())
-    emb.add_field(name="Help", value="Display this menu.", inline=True)
-    emb.add_field(name="Stop", value="Stop the Baby-Dorito.", inline=True)
-    emb.add_field(name="Roast [person]", value="Roast somebody.", inline=True)
-    emb.add_field(name="MCPing [ip]", value="Get information about a minecraft server. (Port not required. Correct port will be found.)", inline=True)
-    emb.add_field(name="MCPlayer [ign]", value="Get information about a minecraft player.", inline=True)
-    emb.add_field(name="Coming SOON:", value="Reddit API integration, calc command, ping a website, minigames and more!")
+async def help(ctx):
+    emb = discord.Embed(title="Baby-Dorito Help Menu", type="rich", description="Hey there! I'm Baby-Dorito and here is how you can use me.\nSome commands may not be completely functional at the time since the bot is still under development.", color=0x00ff00, timestamp=datetime.datetime.utcnow())
+    emb.add_field(name="PREFIX:", value=prefix, inline=False)
+    emb.add_field(name="Help", value="Display this menu.", inline=False)
+    emb.add_field(name="Stop", value="Stop Baby-Dorito :(.", inline=False)
+    emb.add_field(name="Roast [person]", value="Roast somebody.", inline=False)
+    emb.add_field(name="Ping [website/ip]", value="Ping any website or IP address.")
+    emb.add_field(name="MCPing [ip]", value="Get information about a minecraft server. (Port will be found automatically", inline=False)
+    emb.add_field(name="MCPlayer [ign]", value="Get information about a minecraft player.", inline=False)
+    emb.add_field(name="Coming SOON:", value="Reddit integration, minigames and more!", inline=False)
+    emb.add_field(name="Source", value="[Github link](https://github.com/Flaming-Dorito/Baby-Dorito)", inline=False)
+    emb.add_field(name="Suggestions please", value="Have a suggesion for the bot. Anything at all? Contact Flaming_Dorito#0001 pls.")
     emb.set_footer(text=f"Requested by {ctx.author}")
     await ctx.send(embed=emb)
 
