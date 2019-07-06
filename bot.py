@@ -1,9 +1,12 @@
 import discord
 from discord.ext import commands
 import json
+import os
 
 
-with open("token.json", 'r') as f:
+dirname = os.path.dirname(__file__)
+tokenFilename = os.path.join(dirname, 'token.json')
+with open(tokenFilename, 'r') as f:
     data = json.load(f)
 TOKEN = data['token']
 prefix = "d."
