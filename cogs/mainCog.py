@@ -149,13 +149,13 @@ class Main(commands.Cog):
 
     def roast_can_run(guildBlacklist):
         async def predicate(ctx):
-            if commands.is_owner() or ctx.message.guild.id not in guildBlacklist:
+            if await ctx.bot.is_owner(ctx.author) or ctx.message.guild.id not in guildBlacklist:
                 return True
             raise RoastCantRun('Command disabled')
         return commands.check(predicate)
 
     @commands.command()
-    @roast_can_run(["547155755308941312"])
+    @roast_can_run([547155755308941312])
     async def roast(self, ctx, person=None):
         if person is None:
             emb = discord.Embed(title=f"Error: No person entered", type="rich", description="Enter who you want to roast.", color=0xff0000, timestamp=datetime.datetime.utcnow())
